@@ -301,11 +301,13 @@ function open_(id){
   '<a href="https://www.modash.io/fake-follower-check" target="_blank" rel="noopener">Fake-follower check</a>'+
   '<a href="https://socialblade.com/instagram/user/'+encodeURIComponent(b)+'" target="_blank" rel="noopener">Social Blade</a>'+
   (c.website?'<a href="'+esc(c.website)+'" target="_blank" rel="noopener">Website</a>':"")+
-  (c.email?'<a href="mailto:'+esc(c.email)+'">Email</a>':"")+'</div>';
+  (c.email?'<a href="mailto:'+esc(c.email)+'">Email</a>':"")+
+  (c.phone?'<a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a>':"")+'</div>';
 
  h+='<div class="sect"><h3>Identity</h3><div class="f2">'+
   fld("f_display","Name",c.display_name)+sel("f_plat","Platform",c.platform||"instagram",["instagram","tiktok","youtube","blog","other"])+
   fld("f_second","Other handles / caution",c.secondary_handle)+fld("f_email","Email",c.email)+
+  fld("f_phone","Phone",c.phone)+
   fld("f_site","Website",c.website)+fld("f_area","Area",c.area)+'</div>'+
   '<div style="margin-top:8px"><div class="fl">Bio</div><textarea id="f_bio" rows="2">'+esc(c.bio||"")+'</textarea></div></div>';
 
@@ -360,7 +362,7 @@ function open_(id){
    subject:t&&t.subject?merge(t.subject,c):null,body:$("body").value,status:"logged",sent_at:new Date().toISOString()})})
    .then(function(){setStage(c,"contacted")}).catch(function(e){showErr(e.message)})};
  $("sv").onclick=function(){patch(c.id,{
-   display_name:v("f_display"),platform:v("f_plat"),secondary_handle:v("f_second"),email:v("f_email"),
+   display_name:v("f_display"),platform:v("f_plat"),secondary_handle:v("f_second"),email:v("f_email"),phone:v("f_phone"),
    website:v("f_site"),area:v("f_area"),bio:v("f_bio"),followers:num("f_fol"),engagement_rate:num("f_er"),
    avg_views:num("f_views"),fake_pct:num("f_fake"),last_checked_on:v("f_check"),audience_note:v("f_aud"),
    priority:v("f_prio"),lane:v("f_lane"),verify_status:v("f_verify"),niche:v("f_niche"),
