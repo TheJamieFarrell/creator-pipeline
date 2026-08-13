@@ -36,6 +36,7 @@ h2:first-child{margin-top:2px}
 .row{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;align-items:center}
 .t{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:#eceae4;color:#5b584f;white-space:nowrap}
 .t.a{background:var(--accent);color:#fff}.t.b{background:#e7d7c4;color:#6b4519}
+.t.ty{background:#e3e8f2;color:#33415c}
 .t.ok{background:#dcf0e3;color:var(--ok)}.t.warn{background:#fbecd2;color:var(--warn)}.t.bad{background:#fbdedb;color:var(--bad)}
 .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px}
 select,input,textarea{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);width:100%}
@@ -97,7 +98,7 @@ var API="https://plfuwvyehvlvvckqcvzn.supabase.co/rest/v1/";
 var KEY="sb_publishable_8X9HBtnP6wmxeLNfs_MJ1Q_7X9jvoPZ";
 var HDR={apikey:KEY,Authorization:"Bearer "+KEY,"Content-Type":"application/json"};
 var C=[],S=[],T=[],WS={name:"Creator Pipeline",unit_cost:12,from_name:""},TAB="board";
-var F={q:"",lane:"",prio:"",stage:""};
+var F={q:"",type:"",prio:"",stage:""};
 var $=function(i){return document.getElementById(i)};
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -112,6 +113,18 @@ function api(p,o){o=o||{};o.headers=HDR;return fetch(API+p,o).then(function(r){
  if(!r.ok)return r.text().then(function(t){throw new Error("HTTP "+r.status+" "+t.slice(0,250))});
  if(o.method&&o.method!="GET")return null;return r.json()})}
 
+function types(){var t=[];C.forEach(function(c){if(c.account_type&&t.indexOf(c.account_type)<0)t.push(c.account_type)});
+ return t.sort()}
+function typeSel(id,val){return '<select id="'+id+'"><option value="">All account types</option>'+
+ types().map(function(t){return '<option'+(val==t?" selected":"")+'>'+esc(t)+'</option>'}).join("")+'</select>'}
+function matches(c){
+ if(F.type&&c.account_type!=F.type)return false;
+ if(F.prio&&c.priority!=F.prio)return false;
+ if(F.q){var q=F.q.toLowerCase();
+  if(((c.handle||"")+" "+(c.niche||"")+" "+(c.area||"")+" "+(c.notes||"")+" "+(c.bio||"")+" "+(c.display_name||"")).toLowerCase().indexOf(q)<0)return false}
+ return true}
+function prioSel(id,val){return '<select id="'+id+'"><option value="">All priorities</option>'+
+ ["A","B","C","D"].map(function(p){return '<option'+(val==p?" selected":"")+'>'+p+'</option>'}).join("")+'</select>'}
 function stage(k){for(var i=0;i<S.length;i++)if(S[i].key==k)return S[i];return {key:k,label:k,kind:"active",position:0}}
 function actives(){return S.filter(function(s){return s.kind=="active"}).sort(function(a,b){return a.position-b.position})}
 function exits(){return S.filter(function(s){return s.kind=="exit"}).sort(function(a,b){return a.position-b.position})}
@@ -187,11 +200,16 @@ function card(c,note){
   '<div class="hd">'+esc(c.handle)+'</div>'+(meta?'<div class="mt">'+esc(meta)+'</div>':"")+
   (note?'<div class="wy" style="color:#b4690e;font-weight:600">'+esc(note)+'</div>':"")+
   '<div class="wy">'+esc((c.niche||"").slice(0,110))+'</div>'+
-  '<div class="row"><span class="t '+(c.priority=="A"?"a":c.priority=="B"?"b":"")+'">'+esc(c.priority||"C")+'</span>'+vTag(c.verify_status)+'</div></div>'}
+  '<div class="row"><span class="t '+(c.priority=="A"?"a":c.priority=="B"?"b":"")+'">'+esc(c.priority||"C")+'</span>'+
+  (c.account_type?'<span class="t ty">'+esc(c.account_type)+'</span>':"")+vTag(c.verify_status)+'</div></div>'}
 
 function viewBoard(){
- var h='<div class="note">Tap a card for the full record. An amber edge means it has sat past its stage clock.</div><div class="board">';
- actives().forEach(function(s){var rows=C.filter(function(c){return c.stage==s.key});
+ var shown=C.filter(matches).length;
+ var h='<div class="filters">'+typeSel("bt",F.type)+prioSel("bp",F.prio)+
+  '<input id="bq" placeholder="Search" value="'+esc(F.q)+'"></div>'+
+  '<div class="note">Tap a card for the full record. An amber edge means it has sat past its stage clock.'+
+  ((F.type||F.prio||F.q)?' <b>Showing '+shown+' of '+C.length+'.</b>':"")+'</div><div class="board">';
+ actives().forEach(function(s){var rows=C.filter(function(c){return c.stage==s.key&&matches(c)});
   h+='<div class="col"><div class="colh"><b>'+esc(s.label)+'</b><em>'+rows.length+'</em></div><div class="colhint">'+esc(s.hint||"")+'</div>';
   rows.slice(0,40).forEach(function(c){h+=card(c)});
   if(!rows.length)h+='<div class="mut" style="padding:6px 2px">Empty</div>';
@@ -209,17 +227,12 @@ function viewDue(){var d=due(),h='<h2>Needs you today ('+d.length+')</h2>';
  return h}
 
 function viewList(){
- var lanes=[];C.forEach(function(c){if(c.lane&&lanes.indexOf(c.lane)<0)lanes.push(c.lane)});lanes.sort();
- var h='<div class="filters"><input id="fq" placeholder="Search handle, note, area, bio" value="'+esc(F.q)+'">'+
+ var h='<div class="filters"><input id="fq" placeholder="Search handle, name, note, area, bio" value="'+esc(F.q)+'">'+
   '<select id="fst"><option value="">All stages</option>'+S.map(function(s){return '<option value="'+s.key+'"'+(F.stage==s.key?" selected":"")+'>'+esc(s.label)+'</option>'}).join("")+'</select>'+
-  '<select id="fl"><option value="">All lanes</option>'+lanes.map(function(l){return '<option'+(F.lane==l?" selected":"")+'>'+esc(l)+'</option>'}).join("")+'</select>'+
-  '<select id="fp"><option value="">All priorities</option>'+["A","B","C","D"].map(function(p){return '<option'+(F.prio==p?" selected":"")+'>'+p+'</option>'}).join("")+'</select></div>';
+  typeSel("fl",F.type)+prioSel("fp",F.prio)+'</div>';
  var L=C.filter(function(c){
   if(F.stage&&c.stage!=F.stage)return false;
-  if(F.lane&&c.lane!=F.lane)return false;
-  if(F.prio&&c.priority!=F.prio)return false;
-  if(F.q){var q=F.q.toLowerCase();
-   if(((c.handle||"")+" "+(c.niche||"")+" "+(c.area||"")+" "+(c.notes||"")+" "+(c.bio||"")).toLowerCase().indexOf(q)<0)return false}
+  if(!matches(c))return false;
   return true});
  h+='<h2>'+L.length+' contacts</h2>';
  if(!L.length)h+='<div class="empty">Nothing matches.</div>';
@@ -254,10 +267,14 @@ function viewStats(){
 
 function render(){try{nav();
  $("main").innerHTML=TAB=="board"?viewBoard():TAB=="due"?viewDue():TAB=="list"?viewList():TAB=="import"?viewImport():viewStats();
- if(TAB=="list"){var q=$("fq");
-  q.oninput=function(){F.q=q.value;var p=q.selectionStart;render();var e=$("fq");e.focus();e.setSelectionRange(p,p)};
+ function typeahead(id){var q=$(id);if(!q)return;
+  q.oninput=function(){F.q=q.value;var p=q.selectionStart;render();var e=$(id);if(e){e.focus();e.setSelectionRange(p,p)}}}
+ if(TAB=="board"){typeahead("bq");
+  $("bt").onchange=function(){F.type=this.value;render()};
+  $("bp").onchange=function(){F.prio=this.value;render()}}
+ if(TAB=="list"){typeahead("fq");
   $("fst").onchange=function(){F.stage=this.value;render()};
-  $("fl").onchange=function(){F.lane=this.value;render()};
+  $("fl").onchange=function(){F.type=this.value;render()};
   $("fp").onchange=function(){F.prio=this.value;render()}}
  if(TAB=="import")$("impgo").onclick=doImport;
 }catch(e){showErr("Render failed: "+e.message)}}
@@ -322,7 +339,8 @@ function open_(id){
 
  h+='<div class="sect"><h3>Placement</h3><div class="f3">'+
   sel("f_prio","Priority",c.priority||"C",["A","B","C","D"])+
-  fld("f_lane","Lane",c.lane)+fld("f_verify","Verification",c.verify_status)+'</div>'+
+  '<div><div class="fl">Account type</div>'+typeSel("f_type",c.account_type).replace('All account types','Unsorted')+'</div>'+
+  fld("f_verify","Verification",c.verify_status)+'</div>'+
   '<div style="margin-top:8px"><div class="fl">Why they fit</div><textarea id="f_niche" rows="3">'+esc(c.niche||"")+'</textarea></div>'+
   '<div class="kv" style="margin-top:8px"><b>Source</b><span>'+esc(c.source||"—")+'</span></div>'+
   '<div class="kv"><b>Added</b><span>'+esc((c.created_at||"").slice(0,10))+'</span></div>'+
@@ -365,7 +383,7 @@ function open_(id){
    display_name:v("f_display"),platform:v("f_plat"),secondary_handle:v("f_second"),email:v("f_email"),phone:v("f_phone"),
    website:v("f_site"),area:v("f_area"),bio:v("f_bio"),followers:num("f_fol"),engagement_rate:num("f_er"),
    avg_views:num("f_views"),fake_pct:num("f_fake"),last_checked_on:v("f_check"),audience_note:v("f_aud"),
-   priority:v("f_prio"),lane:v("f_lane"),verify_status:v("f_verify"),niche:v("f_niche"),
+   priority:v("f_prio"),account_type:v("f_type"),verify_status:v("f_verify"),niche:v("f_niche"),
    next_action_on:v("f_next"),discount_code:v("f_code"),post_url:v("f_post"),notes:v("f_notes")})};
 
  Promise.all([
